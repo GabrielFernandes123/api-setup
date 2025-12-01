@@ -13,7 +13,7 @@ yarn add @prisma/client class-validator class-transformer @nestjs/swagger @nestj
 ### Dependências de Desenvolvimento
 
 ```powershell
-yarn add -D prisma husky lint-staged @commitlint/cli @commitlint/config-conventional @commitlint/types eslint-plugin-unused-imports eslint-config-prettier eslint-plugin-prettier
+yarn add -D prisma husky lint-staged @commitlint/cli @commitlint/config-conventional @commitlint/types eslint-plugin-unused-imports eslint-config-prettier eslint-plugin-prettier globals @eslint/js typescript-eslint
 ```
 
 ---
@@ -117,51 +117,77 @@ export default Configuration;
 
 ---
 
-#### Arquivo: `.eslintrc.js`
+#### Arquivo: `eslint.config.mjs`
 
 ```js
-module.exports = {
-  parser: "@typescript-eslint/parser",
-  parserOptions: {
-    project: "tsconfig.json",
-    tsconfigRootDir: __dirname,
-    sourceType: "module",
-  },
-  plugins: ["@typescript-eslint/eslint-plugin", "unused-imports"],
-  extends: [
-    "plugin:@typescript-eslint/recommended",
-    "plugin:prettier/recommended",
-  ],
-  root: true,
-  env: {
-    node: true,
-    jest: true,
-  },
-  ignorePatterns: [".eslintrc.js"],
-  rules: {
-    "@typescript-eslint/no-floating-promises": "error",
+import eslint from "@eslint/js";
+import tseslint from "typescript-eslint";
+import unusedImports from "eslint-plugin-unused-imports";
+import prettierPlugin from "eslint-plugin-prettier/recommended";
+import globals from "globals";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-    "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": "off",
-    "unused-imports/no-unused-imports": "error",
-    "unused-imports/no-unused-vars": [
-      "warn",
-      {
-        vars: "all",
-        varsIgnorePattern: "^_",
-        args: "after-used",
-        argsIgnorePattern: "^_",
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+export default tseslint.config(
+  // 1. Configurações de ignorar arquivos (substitui .eslintignore)
+  {
+    ignores: ["eslint.config.mjs", "dist", "node_modules", "coverage"],
+  },
+
+  // 2. Configurações base recomendadas (JS + TS + Prettier)
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  prettierPlugin,
+
+  // 3. Sua configuração personalizada
+  {
+    languageOptions: {
+      parserOptions: {
+        project: "tsconfig.json",
+        tsconfigRootDir: __dirname,
+        sourceType: "module",
       },
-    ],
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+    },
+    plugins: {
+      "unused-imports": unusedImports,
+    },
+    rules: {
+      // --- SUAS REGRAS ORIGINAIS ---
 
-    "@typescript-eslint/interface-name-prefix": "off",
-    "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/explicit-module-boundary-types": "off",
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-unsafe-assignment": "off",
-    "@typescript-eslint/no-unsafe-member-access": "off",
-  },
-};
+      // Segurança: Obriga await ou catch em promises
+      "@typescript-eslint/no-floating-promises": "error",
+
+      // Limpeza de variáveis e imports
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-vars": [
+        "warn",
+        {
+          vars: "all",
+          varsIgnorePattern: "^_",
+          args: "after-used",
+          argsIgnorePattern: "^_",
+        },
+      ],
+
+      // Regras desligadas para agilidade (Pragmatic NestJS)
+      "@typescript-eslint/interface-name-prefix": "off",
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+    },
+  }
+);
 ```
 
 ---
@@ -257,7 +283,10 @@ async function bootstrap() {
   await app.listen(3333);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error("Erro ao iniciar a aplicação:", err);
+  process.exit(1);
+});
 ```
 
 ---
@@ -296,9 +325,7 @@ Garanta que existe o script `prepare`:
 
 ## 5. Criar Prisma Module
 
-´´´ powershell
-nest g module modules/database
-nest g service services/database/prisma --flat --project modules/database
+### Criar modulo de banco de dados
 
 ```powershell
 nest g module modules/database
